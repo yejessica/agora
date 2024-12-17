@@ -40,7 +40,7 @@ def fetch_encoded_descriptions():
     ]
     return encoded_data_cache
 
-def find_similar_descriptions(user_input, encoded_data, top_n=5):
+def find_similar_descriptions(user_input, encoded_data, top_n=9):
     """Find the most similar descriptions in the database to the user input."""
     # Encode the user input
     user_embedding = model.encode(user_input)
@@ -72,6 +72,25 @@ def fetch_company_details(company_ids):
     conn.close()
     return results
 
+# def init_db():
+#     conn = sqlite3.connect('subscriptions.db')
+#     cursor = conn.cursor()
+#     cursor.execute('''
+#         CREATE TABLE IF NOT EXISTS subscriptions (
+#             id INTEGER PRIMARY KEY AUTOINCREMENT,
+#             name TEXT NOT NULL,
+#             renewalDate TEXT NOT NULL,
+#             price REAL NOT NULL,
+#             link TEXT NOT NULL
+#         )
+                   
+                   
+
+#     ''')
+#     conn.commit()
+#     conn.close()
+
+
 @app.route('/api/similar-companies', methods=['POST'])
 def get_similar_companies():
     data = request.json
@@ -101,6 +120,46 @@ def get_similar_companies():
         })
 
     return jsonify(results)
+@app.route('/subscriptions', methods=['GET'])
+def get_subscriptions():
+    """Fetch all subscription records from the database and return them as JSON."""
+    connection = sqlite3.connect('subscriptions.db')
+    cursor = connection.cursor()
+    cursor.execute('SELECT id, name, renewalDate, price, link FROM subscriptions')
+    rows = cursor.fetchall()
+    connection.close()
+    
+    subscriptions = [
+        {"id": row[0], "name": row[1], "renewalDate": row[2], "price": row[3], "link": row[4]} 
+        for row in rows
+    ]
+    
+    return jsonify(subscriptions)
+
+@app.route('/subscriptions', methods=['POST'])
+def add_subscription():
+    """Insert a new subscription record into the database."""
+    data = request.json
+    connection = sqlite3.connect('subscriptions.db')
+    cursor = connection.cursor()
+    cursor.execute('''
+        INSERT INTO subscriptions (name, renewalDate, price, link) 
+        VALUES (?, ?, ?, ?)
+    ''', (data['name'], data['renewalDate'], data['price'], data['link']))
+    connection.commit()
+    new_id = cursor.lastrowid
+    connection.close()
+    
+    return jsonify({
+        'id': new_id,
+        'name': data['name'],
+        'renewalDate': data['renewalDate'],
+        'price': data['price'],
+        'link': data['link']
+    }), 201
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
+
